@@ -1,0 +1,17 @@
+names:
+- bike
+- bus
+- bycicle
+- car
+- person
+- truck
+nc: 6
+roboflow:
+  license: CC BY 4.0
+  project: vehicle-detect-zyvfr
+  url: https://universe.roboflow.com/yolodatalabeling/vehicle-detect-zyvfr/dataset/4
+  version: 4
+  workspace: yolodatalabeling
+test: ../test/images
+train: ../train/images
+val: ../valid/images
