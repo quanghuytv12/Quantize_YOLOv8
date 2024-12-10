@@ -13,6 +13,3 @@ quantized_model = quantize_dynamic(
     # op_types_to_quantize=["Conv", "Gemm"],  # Tuỳ chọn: chỉ định các loại toán tử cần quantize (ví dụ: Conv, Gemm)
 )
 
-# Lưu mô hình đã quantized
-onnx.save_model(quantized_model, output_model_path)
-
