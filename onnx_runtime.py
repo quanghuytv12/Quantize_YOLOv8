@@ -5,6 +5,7 @@ import onnxruntime as ort
 import torch
 from ultralytics.utils import yaml_load
 from ultralytics.utils.checks import check_requirements, check_yaml
+import time
 
 
 class YOLOv8:
@@ -75,25 +76,6 @@ class YOLOv8:
     def save_result(self, output_frame):
         return output_frame
 
-    def process_image(self):
-        # Open the image file
-        img = cv2.imread(self.input_file)
-        if img is None:
-            print(f"Error: Couldn't read image {self.input_file}")
-            return
-        # Preprocess the image for inference
-        img_data = self.preprocess(img)
-
-        # Run inference
-        outputs = self.session.run(None, {self.model_inputs[0].name: img_data})
-
-        # Perform post-processing and get the result frame
-        output_frame = self.postprocess(img, outputs)
-
-        # Save the result
-        cv2.imwrite(self.output_file, output_frame)
-        print(f"Image processing complete. Output saved to {self.output_file}")
-
     def process_video(self):
         # Open the video file
         cap = cv2.VideoCapture(self.input_file)
@@ -106,29 +88,62 @@ class YOLOv8:
         frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fps = int(cap.get(cv2.CAP_PROP_FPS))
 
+        if fps == 0:  # Ensure fps is not zero to avoid division by zero
+            print("Error: FPS is zero, unable to process video.")
+            return
+
+        print(frame_width, frame_height)
         # Define the codec and create VideoWriter object
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         out = cv2.VideoWriter(self.output_file, fourcc, fps, (frame_width, frame_height))
+
+        # Set the desired FPS (for example, we can try to process the video at 2x speed)
+        desired_fps = 60  # Adjust as necessary
+        frame_interval = max(int(fps / desired_fps), 1)  # Ensure frame_interval is never zero
+
+        cv2.namedWindow('Processed Video', cv2.WINDOW_NORMAL)
+        cv2.resizeWindow('Processed Video', frame_width, frame_height)
 
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
                 break
 
-            # Preprocess the frame for inference
-            img_data = self.preprocess(frame)
+            # Ensure the frame is the correct size
+            frame = cv2.resize(frame, (frame_width, frame_height))
 
-            # Run inference
-            outputs = self.session.run(None, {self.model_inputs[0].name: img_data})
+            # Process every nth frame
+            frame_count = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
+            if frame_count % frame_interval == 0:
+                start_time = time.time()  # Start time for FPS measurement
 
-            # Perform post-processing and get the result frame
-            output_frame = self.postprocess(frame, outputs)
+                # Preprocess the frame for inference
+                img_data = self.preprocess(frame)
 
-            # Write the output frame to the video
-            out.write(output_frame)
+                # Run inference
+                outputs = self.session.run(None, {self.model_inputs[0].name: img_data})
+
+                # Perform post-processing and get the result frame
+                output_frame = self.postprocess(frame, outputs)
+
+                # Write the output frame to the video
+                out.write(output_frame)
+
+                # Show the output frame in a window
+                cv2.imshow('Processed Video', output_frame)
+
+                # Wait for a key press for 1ms (this helps control FPS)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+
+                end_time = time.time()
+                processing_time = end_time - start_time
+                print(
+                    f"Processed frame {frame_count}/{int(cap.get(cv2.CAP_PROP_FRAME_COUNT))} in {processing_time:.3f} seconds")
 
         cap.release()
         out.release()
+        cv2.destroyAllWindows()  # Close all OpenCV windows
         print(f"Video processing complete. Output saved to {self.output_file}")
 
     def main(self):
