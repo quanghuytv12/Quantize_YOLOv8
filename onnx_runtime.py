@@ -104,6 +104,8 @@ class YOLOv8:
         cv2.namedWindow('Processed Video', cv2.WINDOW_NORMAL)
         cv2.resizeWindow('Processed Video', frame_width, frame_height)
 
+        start_time = time.time()  # Start time for FPS calculation
+
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
@@ -115,8 +117,6 @@ class YOLOv8:
             # Process every nth frame
             frame_count = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
             if frame_count % frame_interval == 0:
-                start_time = time.time()  # Start time for FPS measurement
-
                 # Preprocess the frame for inference
                 img_data = self.preprocess(frame)
 
@@ -129,17 +129,22 @@ class YOLOv8:
                 # Write the output frame to the video
                 out.write(output_frame)
 
+                # Calculate FPS
+                end_time = time.time()
+                processing_time = end_time - start_time
+                fps_display = 1.0 / processing_time
+                start_time = end_time  # Update start time for next frame
+
+                # Display FPS on the frame
+                fps_text = f"FPS: {fps_display:.2f}"
+                cv2.putText(output_frame, fps_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+
                 # Show the output frame in a window
                 cv2.imshow('Processed Video', output_frame)
 
                 # Wait for a key press for 1ms (this helps control FPS)
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
-
-                end_time = time.time()
-                processing_time = end_time - start_time
-                print(
-                    f"Processed frame {frame_count}/{int(cap.get(cv2.CAP_PROP_FRAME_COUNT))} in {processing_time:.3f} seconds")
 
         cap.release()
         out.release()
